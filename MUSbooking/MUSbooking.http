@@ -1,0 +1,6 @@
+@MUSbooking_HostAddress = http://localhost:5245
+
+GET {{MUSbooking_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
