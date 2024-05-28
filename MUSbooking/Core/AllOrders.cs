@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MUSbooking.Common;
+using MUSbooking.Common.Caching;
 using MUSbooking.Common.Mapping;
 using MUSbooking.Database.Models;
 using MUSbooking.Database.Models.Connections;
@@ -22,10 +23,47 @@ namespace MUSbooking.Core
     {
         public record Query(int page, int pageSize) : IRequest<ValidationResult<PaginatedResult<OrderDto>>>;
 
-        public record Handler(AppDbContext context, IMapper mapper) : IRequestHandler<Query, ValidationResult<PaginatedResult<OrderDto>>>
+        public record Handler(AppDbContext context, IMapper mapper, Redis redis) : IRequestHandler<Query, ValidationResult<PaginatedResult<OrderDto>>>
         {
             public async Task<ValidationResult<PaginatedResult<OrderDto>>> Handle(Query request, CancellationToken cancellationToken)
             {
+                //string cacheKey = $"Orders_{request.page}_{request.pageSize}";
+
+                //var (success, cachedResult) = await redis.TryGetValueAsync<PaginatedResult<OrderDto>>(cacheKey);
+                //if (success)
+                //{
+                //    return ValidationResult<PaginatedResult<OrderDto>>.Success(cachedResult);
+                //}
+
+                //// Данные отсутствуют в кэше, выполняем запрос к базе данных
+                //IOrderedQueryable<Order> ordersQuery = context.Orders
+                //    .AsNoTracking()
+                //    .Include(o => o.OrderEquipments)
+                //    .ThenInclude(oe => oe.Equipment)
+                //    .OrderBy(o => o.CreatedAt);
+
+                //int totalItems = await ordersQuery.CountAsync(cancellationToken);
+                //List<Order> orders = await ordersQuery
+                //    .Skip((request.page - 1) * request.pageSize)
+                //    .Take(request.pageSize)
+                //    .ToListAsync(cancellationToken);
+
+                //if (orders.Any())
+                //{
+                //    List<OrderDto> orderDtos = mapper.Map<List<OrderDto>>(orders);
+                //    PaginatedResult<OrderDto> paginatedResult = new PaginatedResult<OrderDto>(orderDtos, totalItems, request.page, request.pageSize);
+
+                //    // Кэшируем результат запроса на указанное время (например, 5 минут)
+                //    await redis.SetDataAsync(cacheKey, paginatedResult, TimeSpan.FromMinutes(5).Seconds);
+
+                //    return ValidationResult<PaginatedResult<OrderDto>>.Success(paginatedResult);
+                //}
+                //else
+                //{
+                //    return ValidationResult<PaginatedResult<OrderDto>>.Failure("There are no orders in the system");
+                //}
+
+
                 IOrderedQueryable<Order>? ordersQuery = context.Orders
                 .AsNoTracking()
                 .Include(o => o.OrderEquipments)
@@ -40,14 +78,14 @@ namespace MUSbooking.Core
 
                 if (orders.Any())
                 {
-                    var orderDtos = mapper.Map<List<OrderDto>>(orders);
-                    var paginatedResult = new PaginatedResult<OrderDto>(orderDtos, totalItems, request.page, request.pageSize);
+                    List<OrderDto> orderDtos = mapper.Map<List<OrderDto>>(orders);
+                    PaginatedResult<OrderDto> paginatedResult = new PaginatedResult<OrderDto>(orderDtos, totalItems, request.page, request.pageSize);
                     return ValidationResult<PaginatedResult<OrderDto>>.Success(paginatedResult);
                 }
                 else
                 {
                     return ValidationResult<PaginatedResult<OrderDto>>.Failure("There are no orders in the system");
-                }             
+                }
             }
         }
     }
